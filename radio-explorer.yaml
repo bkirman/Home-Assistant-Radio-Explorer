@@ -1,0 +1,146 @@
+automation:
+  - id: play_random_radio
+    alias: Play Random Radio
+    trigger:
+    - trigger: conversation
+      command:
+        - Play Random Radio
+        - Play a random radio station
+    actions:
+    - action: rest_command.random_radio_station
+      response_variable: radio_response
+    - if: "{{ radio_response['status'] == 200 }}"
+      then:
+        - alias: "Parse Radio Data"
+          variables:
+            st_name: "{{ radio_response['content'][0]['name'] }}"
+            st_state: "{{ radio_response['content'][0]['state'] }}"
+            st_country: "{{ radio_response['content'][0]['country'] }}"
+            st_station: "{{ radio_response['content'][0]['stationuuid']}}"
+            st_favicon: "{{ radio_response['content'][0]['favicon']}}"
+        - set_conversation_response: "{{ st_name }} from {% if st_state %}{{ st_state }} in {% endif %}{{ st_country }}"
+        - action: media_player.play_media
+          metadata: {}
+          data_template:
+            media:
+              media_content_id: media-source://radio_browser/{{ st_station }}
+              media_content_type: music
+            extra:
+              title: "{{ st_name }}"
+              thumb: "{{ st_favicon }}"
+
+  - id: play_genre_radio
+    alias: Play Genre Radio
+    trigger:
+      - trigger: conversation
+        command:
+          - "Play [some] {genre_spoken} (music|radio)"
+    actions:
+      - service: rest_command.genre_radio_station
+        data_template:
+          genre: "{{ trigger.slots.genre_spoken }}"
+        response_variable: radio_response
+      - if: "{{ radio_response['status'] == 200 }}"
+        then:
+          - if: "{{ not radio_response['content'] }}"
+            then:
+              - set_conversation_response: "Sorry, I can't find any {{ trigger.slots.genre_spoken }} music"
+            else:
+              - alias: "Parse Radio Data"
+                variables:
+                  st_name: "{{ radio_response['content'][0]['name'] }}"
+                  st_state: "{{ radio_response['content'][0]['state'] }}"
+                  st_country: "{{ radio_response['content'][0]['country'] }}"
+                  st_station: "{{ radio_response['content'][0]['stationuuid']}}"
+                  st_favicon: "{{ radio_response['content'][0]['favicon']}}"
+              - set_conversation_response: "{{ st_name }} from {% if st_state %}{{ st_state }} in {% endif %}{{ st_country }}"
+              - action: media_player.play_media
+                metadata: {}
+                data_template:
+                  media:
+                    media_content_id: media-source://radio_browser/{{ st_station }}
+                    media_content_type: music
+                  extra:
+                    title: "{{ st_name }}"
+                    thumb: "{{ st_favicon }}"
+
+  - id: play_country_radio
+    alias: Play Radio from Country
+    trigger:
+      - trigger: conversation
+        command:
+          - "Play [some] (music|radio) from {country_spoken}"
+    actions:
+      - service: rest_command.country_radio_station
+        data_template:
+          country: "{{ trigger.slots.country_spoken }}"
+        response_variable: radio_response
+      - if: "{{ radio_response['status'] == 200 }}"
+        then:
+          - if: "{{ not radio_response['content'] }}"
+            then:
+              - set_conversation_response: "Sorry, I can't find anything from {{ trigger.slots.country_spoken }}"
+            else:
+              - alias: "Parse Radio Data"
+                variables:
+                  st_name: "{{ radio_response['content'][0]['name'] }}"
+                  st_state: "{{ radio_response['content'][0]['state'] }}"
+                  st_country: "{{ radio_response['content'][0]['country'] }}"
+                  st_station: "{{ radio_response['content'][0]['stationuuid']}}"
+                  st_favicon: "{{ radio_response['content'][0]['favicon']}}"
+              - set_conversation_response: "{{ st_name }} from {% if st_state %}{{ st_state }} in {% endif %}{{ st_country }}"
+              - action: media_player.play_media
+                metadata: {}
+                data_template:
+                  media:
+                    media_content_id: media-source://radio_browser/{{ st_station }}
+                    media_content_type: music
+                  extra:
+                    title: "{{ st_name }}"
+                    thumb: "{{ st_favicon }}"
+
+  - id: play_country_genre_radio
+    alias: Play Genre Radio from Country
+    trigger:
+      - trigger: conversation
+        command:
+          - "Play [some] {genre_spoken} (music|radio) from {country_spoken}"
+    actions:
+      - service: rest_command.country_genre_radio_station
+        data_template:
+          country: "{{ trigger.slots.country_spoken }}"
+          genre: "{{ trigger.slots.genre_spoken }}"
+        response_variable: radio_response
+      - if: "{{ radio_response['status'] == 200 }}"
+        then:
+          - if: "{{ not radio_response['content'] }}"
+            then:
+              - set_conversation_response: "Sorry, I can't find any {{ trigger.slots.genre_spoken }} from {{ trigger.slots.country_spoken }}"
+            else:
+              - alias: "Parse Radio Data"
+                variables:
+                  st_name: "{{ radio_response['content'][0]['name'] }}"
+                  st_state: "{{ radio_response['content'][0]['state'] }}"
+                  st_country: "{{ radio_response['content'][0]['country'] }}"
+                  st_station: "{{ radio_response['content'][0]['stationuuid']}}"
+                  st_favicon: "{{ radio_response['content'][0]['favicon']}}"
+              - set_conversation_response: "{{ st_name }} from {% if st_state %}{{ st_state }} in {% endif %}{{ st_country }}"
+              - action: media_player.play_media
+                metadata: {}
+                data_template:
+                  media:
+                    media_content_id: media-source://radio_browser/{{ st_station }}
+                    media_content_type: music
+                  extra:
+                    title: "{{ st_name }}"
+                    thumb: "{{ st_favicon }}"
+
+rest_command:
+  random_radio_station:
+    url: "https://de2.api.radio-browser.info/json/stations?order=random&limit=1&hidebroken=true"
+  genre_radio_station:
+    url: "https://de2.api.radio-browser.info/json/stations/bytag/{{ genre | lower }}?order=random&limit=1&hidebroken=true"
+  country_radio_station:
+    url: "https://de2.api.radio-browser.info/json/stations/bycountry/{{ country | lower }}?order=random&limit=1&hidebroken=true"
+  country_genre_radio_station:
+    url: "https://de2.api.radio-browser.info/json/stations/search?country={{ country | capitalize }}&tag={{ genre | lower }}&order=random&limit=1&hidebroken=true"
